@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { RightPanel } from "./components/RightPanel";
-import { SideBar } from "./components/SideBar";
+import { RightPanel } from "../components/RightPanel";
+import { SideBar } from "../components/SideBar";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 
 export default function Home() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] h-[calc(100vh-64px)]">
-      <SideBar />
+    <div >
+      {/* <SideBar /> */}
       <main className="flex flex-col items-center justify-center space-y-4 p-4">
       <Button>Hello World</Button>
       <Label htmlFor="r1">Default</Label>
@@ -28,7 +28,7 @@ export default function Home() {
       
       </main>
      
-      <RightPanel />
+      {/* <RightPanel /> */}
     </div>
   );
 }

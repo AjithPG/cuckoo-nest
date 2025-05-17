@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Roboto,Inter } from "next/font/google";
 import "./globals.css";
-import { Header } from "./components/Header";
+import { Navbar } from "./components/Navbar";
 import {Footer} from "./components/Footer";
 
 const roboto = Roboto({
@@ -24,9 +24,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <Header/>
+        <Navbar/>
         {children}
-        <Footer/>
       </body>
     </html>
   );
