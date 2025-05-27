@@ -1,5 +1,5 @@
 import { RightPanel } from "../components/RightPanel";
-import { SideBar } from "../components/SideBar";
+import { SideBar } from "../components/SideNavBar";
 
 const DashboardPage = () => {
   return (

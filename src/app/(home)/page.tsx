@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { RightPanel } from "../components/RightPanel";
-import { SideBar } from "../components/SideBar";
+import { SideBar } from "../components/SideNavBar";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";

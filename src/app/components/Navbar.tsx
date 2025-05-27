@@ -4,6 +4,10 @@ import { Poppins } from "next/font/google"
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
 import { Input } from "@/components/ui/input"
+import { SideNavBar } from "./SideNavBar"
+import { useState } from "react"
+import { MenuIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -18,7 +22,7 @@ interface NavbarItemProps {
 
 const NavbarItem = ({href,children,isActive}:NavbarItemProps) => {
   return (
-    <Link href={href} className={cn(" text-gray-800 hover:text-blue-500", isActive && "text-blue-500")}>
+    <Link href={href} className={cn(" text-gray-800 hover:text-blue-500 text-sm font-medium", isActive && "text-blue-500")}>
       {children}
     </Link>
   )
@@ -32,6 +36,7 @@ const navbarItems = [
 
 export const Navbar = () => {
   const pathname = usePathname()
+  const [isSideBarOpen,setIsSideBarOpen] = useState(false)
   return (
     <nav className="h-[64px] flex justify-between border-b bg-white px-4 py-2">
       <Link href="/" className="flex items-center  text-lg font-bold text-gray-800">
@@ -46,6 +51,12 @@ export const Navbar = () => {
           <NavbarItem key={item.name} href={item.href} isActive={pathname === item.href}> {item.name} </NavbarItem>
         ))}
         </div>
+        <div className="flex lg:hidden items-center justify-center">
+         <Button variant="ghost" className="size-12 border-transparent bg-white" onClick={()=>setIsSideBarOpen(true)}>
+            <MenuIcon/>
+         </Button>
+        </div>
+        <SideNavBar items={navbarItems} open={isSideBarOpen} onOpenChange={setIsSideBarOpen}/>
     </nav>
   )
 }
