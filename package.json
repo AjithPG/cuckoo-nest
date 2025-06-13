@@ -2,11 +2,13 @@
   "name": "cuckoo-nest",
   "version": "0.1.0",
   "private": true,
+  "type":"module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate:types": "payload generate:types --config src/payload.config.ts"
   },
   "dependencies": {
     "@payloadcms/db-mongodb": "^3.42.0",
@@ -41,6 +43,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
+    "tsx": "^4.20.3",
     "tw-animate-css": "^1.2.9",
     "typescript": "^5"
   }
