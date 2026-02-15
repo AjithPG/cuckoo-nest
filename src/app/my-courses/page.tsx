@@ -1,20 +1,89 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { MainLayout } from "@/components/common/MainLayout";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { RootState } from "@/store";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Trash2, Book, PlayCircle, Sparkles } from "lucide-react";
+import { Trash2, Book, PlayCircle, Sparkles, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { removeCourse } from "@/store/slices/coursesSlice";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 export default function MyCoursesPage() {
-    const savedCourses = useAppSelector((state: RootState) => state.courses.savedCourses);
-    const dispatch = useAppDispatch();
+    const [savedCourses, setSavedCourses] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const supabase = createClient();
+
+    const fetchSavedCourses = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            setSavedCourses([]);
+            setIsLoading(false);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from("user_courses")
+            .select(`
+                progress_percent,
+                course:courses (
+                    id,
+                    title,
+                    thumbnail_url,
+                    youtube_id,
+                    chapters (id)
+                )
+            `)
+            .eq("user_id", user.id);
+
+        if (error) {
+            console.error(error);
+        } else {
+            const mapped = data.map((item: any) => ({
+                id: item.course.youtube_id,
+                title: item.course.title,
+                progress: item.progress_percent,
+                totalChapters: item.course.chapters?.length || 0,
+                thumbnailUrl: item.course.thumbnail_url,
+                dbId: item.course.id
+            }));
+            setSavedCourses(mapped);
+        }
+        setIsLoading(false);
+    };
+
+    useEffect(() => {
+        fetchSavedCourses();
+    }, [supabase]);
+
+    const handleRemoveCourse = async (courseId: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { error } = await supabase
+            .from("user_courses")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("course_id", courseId);
+
+        if (error) {
+            alert(error.message);
+        } else {
+            setSavedCourses(prev => prev.filter(c => c.dbId !== courseId));
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <MainLayout>
+                <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-4">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="text-muted-foreground animate-pulse font-medium">Loading your library...</p>
+                </div>
+            </MainLayout>
+        );
+    }
 
     return (
         <MainLayout>
@@ -47,7 +116,7 @@ export default function MyCoursesPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         <AnimatePresence mode="popLayout">
-                            {savedCourses.map((course, index) => (
+                            {savedCourses.map((course) => (
                                 <motion.div
                                     key={course.id}
                                     layout
@@ -60,7 +129,7 @@ export default function MyCoursesPage() {
                                         <CardHeader className="p-0 border-none">
                                             <div className="aspect-[16/9] w-full bg-muted relative overflow-hidden">
                                                 <img
-                                                    src={`https://img.youtube.com/vi/${course.id}/maxresdefault.jpg`}
+                                                    src={course.thumbnailUrl || `https://img.youtube.com/vi/${course.id}/maxresdefault.jpg`}
                                                     alt={course.title}
                                                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                     onError={(e) => {
@@ -81,9 +150,9 @@ export default function MyCoursesPage() {
                                             </h3>
 
                                             <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                                                <span>{course.duration}</span>
+                                                <span>Custom Path</span>
                                                 <span>•</span>
-                                                <span>{course.completedChapters} / {course.totalChapters} chapters</span>
+                                                <span>{course.totalChapters} chapters</span>
                                             </div>
 
                                             <div className="space-y-3 pt-2">
@@ -106,7 +175,7 @@ export default function MyCoursesPage() {
                                                         "w-full font-bold h-12 rounded-xl border-none shadow-md hover:shadow-lg transition-all active:scale-[0.98]",
                                                         course.progress === 100
                                                             ? "bg-green-600 hover:bg-green-700 text-white"
-                                                            : "bg-[#0891b2] hover:bg-[#0e7490] text-white"
+                                                            : "bg-primary hover:bg-primary/90 text-white"
                                                     )}>
                                                         {course.progress === 100 ? "Re-visit Course" : "Continue Learning"}
                                                     </Button>
@@ -115,7 +184,7 @@ export default function MyCoursesPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-12 w-12 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-border/50"
-                                                    onClick={() => dispatch(removeCourse(course.id))}
+                                                    onClick={() => handleRemoveCourse(course.dbId)}
                                                 >
                                                     <Trash2 className="h-5 w-5" />
                                                 </Button>

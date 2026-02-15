@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { MainLayout } from "@/components/common/MainLayout";
 import { ChapterCard } from "@/components/features/ChapterCard";
 import { Button } from "@/components/ui/Button";
@@ -8,77 +8,175 @@ import { Card, CardContent } from "@/components/ui/Card";
 import {
     RotateCcw,
     ChevronLeft,
-    Youtube,
     Clock,
     BookOpen,
     ArrowRight,
     Sparkles,
     PlusCircle,
-    TvMinimalPlay
+    TvMinimalPlay,
+    Loader2
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { addCourse, updateCourseProgress } from "@/store/slices/coursesSlice";
-import { RootState } from "@/store";
+import { getCoursePreview, enrollInCourse, toggleChapterCompletion } from "@/app/actions/course";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 
-const MOCK_CHAPTERS = [
-    { id: "1", title: "Introduction & Setup", timestamp: "00:00", completed: true },
-    { id: "2", title: "Project Architecture", timestamp: "05:12", completed: false },
-    { id: "3", title: "Theme System Implementation", timestamp: "12:45", completed: false },
-    { id: "4", title: "State Management with Redux", timestamp: "25:30", completed: false },
-    { id: "5", title: "Building Reusable UI Components", timestamp: "42:15", completed: false },
-    { id: "6", title: "API Integration & React Query", timestamp: "58:20", completed: false },
-    { id: "7", title: "Performance Optimization", timestamp: "1:12:05", completed: false },
-    { id: "8", title: "Final Deployment", timestamp: "1:30:00", completed: false },
-];
+interface Chapter {
+    id: string;
+    title: string;
+    timestamp: string;
+    completed: boolean;
+    order_index: number;
+}
+
+interface DBChapter {
+    id: string;
+    title: string;
+    timestamp: string;
+    order_index: number;
+}
+
+interface Course {
+    id: string;
+    title: string;
+    description: string;
+    thumbnail_url: string;
+    youtube_id: string;
+    chapters: DBChapter[];
+}
 
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
     const { id: videoId } = React.use(params);
-
-    const [chapters, setChapters] = useState(MOCK_CHAPTERS);
+    const [course, setCourse] = useState<Course | null>(null);
+    const [chapters, setChapters] = useState<Chapter[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSubmitted, setIsSubmitted] = useState(false);
-    const dispatch = useAppDispatch();
-    const savedCourses = useAppSelector((state: RootState) => state.courses.savedCourses);
+    const [isSaved, setIsSaved] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [startTime, setStartTime] = useState(0);
 
+    const supabase = createClient();
+    const router = useRouter();
 
-    const isSaved = savedCourses.some(c => c.id === videoId);
+    useEffect(() => {
+        const init = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
 
-    const toggleChapter = (id: string) => {
-        const updatedChapters = chapters.map(c =>
-            c.id === id ? { ...c, completed: !c.completed } : c
-        );
-        setChapters(updatedChapters);
+            const { course: fetchedCourse, error, isStored } = await getCoursePreview(videoId);
+            if (error) {
+                console.error(error);
+                setIsLoading(false);
+                return;
+            }
 
-        // Sync progress with Redux if course is saved
-        if (isSaved) {
-            const completedCount = updatedChapters.filter(c => c.completed).length;
-            const calculatedProgress = Math.round((completedCount / updatedChapters.length) * 100);
-            dispatch(updateCourseProgress({
-                id: videoId,
-                progress: calculatedProgress,
-                completedChapters: completedCount,
-            }));
+            setCourse(fetchedCourse);
+
+            // Correctly check if the user is enrolled, not just if the course exists
+            let enrolled = false;
+            if (user && isStored && fetchedCourse) {
+                const { data: enrollment } = await supabase
+                    .from("user_courses")
+                    .select("id")
+                    .eq("user_id", user.id)
+                    .eq("course_id", fetchedCourse.id)
+                    .maybeSingle();
+                enrolled = !!enrollment;
+            }
+            setIsSaved(enrolled);
+
+            // Fetch user progress if logged in AND course is stored
+            let progressMap: Record<string, boolean> = {};
+            if (user && enrolled && fetchedCourse) {
+                const { data: progressData } = await supabase
+                    .from("user_progress")
+                    .select("chapter_id, is_completed")
+                    .eq("user_id", user.id);
+
+                progressMap = (progressData || []).reduce((acc: Record<string, boolean>, curr: { chapter_id: string; is_completed: boolean }) => {
+                    acc[curr.chapter_id] = curr.is_completed;
+                    return acc;
+                }, {});
+            }
+
+            const mappedChapters = (fetchedCourse?.chapters || []).map((ch: DBChapter) => ({
+                id: ch.id,
+                title: ch.title,
+                timestamp: ch.timestamp,
+                completed: progressMap[ch.id] || false,
+                order_index: ch.order_index
+            })).sort((a, b) => a.order_index - b.order_index);
+
+            setChapters(mappedChapters);
+            setIsLoading(false);
+        };
+
+        init();
+    }, [videoId, supabase]);
+
+    const toggleChapter = async (id: string) => {
+        if (!user) {
+            router.push(`/login?mode=signup&returnTo=/courses/${videoId}`);
+            return;
+        }
+
+        if (!isSaved) {
+            alert("Please click 'Add to My Learning' to start tracking your progress!");
+            return;
+        }
+
+        const chapter = chapters.find(c => c.id === id);
+        if (!chapter) return;
+
+        const newStatus = !chapter.completed;
+
+        // Optimistic update
+        setChapters(prev => prev.map(c => c.id === id ? { ...c, completed: newStatus } : c));
+
+        try {
+            await toggleChapterCompletion(id, newStatus);
+        } catch (error) {
+            console.error(error);
+            // Rollback
+            setChapters(prev => prev.map(c => c.id === id ? { ...c, completed: !newStatus } : c));
         }
     };
 
+    const handleWatch = (timeStr: string) => {
+        const parts = timeStr.split(":").map(Number);
+        let seconds = 0;
+        if (parts.length === 3) {
+            seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+            seconds = parts[0] * 60 + parts[1];
+        }
+        setStartTime(seconds);
+        // Scroll to video
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
     const progress = useMemo(() => {
+        if (chapters.length === 0) return 0;
         const completedCount = chapters.filter(c => c.completed).length;
         return Math.round((completedCount / chapters.length) * 100);
     }, [chapters]);
 
-    const handleReset = () => {
+    const handleReset = async () => {
+        if (!user) return;
+
         const resetChapters = chapters.map(c => ({ ...c, completed: false }));
         setChapters(resetChapters);
         setIsSubmitted(false);
 
-        if (isSaved) {
-            dispatch(updateCourseProgress({
-                id: videoId,
-                progress: 0,
-                completedChapters: 0,
-            }));
+        // In a real app, you'd have a bulk reset action
+        for (const ch of chapters) {
+            if (ch.completed) {
+                await toggleChapterCompletion(ch.id, false);
+            }
         }
     };
 
@@ -88,28 +186,56 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             return;
         }
         setIsSubmitted(true);
+    };
 
-        // Ensure 100% progress is recorded
-        if (isSaved) {
-            dispatch(updateCourseProgress({
-                id: videoId,
-                progress: 100,
-                completedChapters: chapters.length,
-            }));
+    const handleSaveToLearning = async () => {
+        if (!user) {
+            router.push(`/login?mode=signup&returnTo=/courses/${videoId}`);
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await enrollInCourse(videoId);
+            setIsSaved(true);
+
+            // Refresh course data to get DB IDs for chapters
+            const { course: refreshedCourse } = await getCoursePreview(videoId);
+            if (refreshedCourse) {
+                setCourse(refreshedCourse);
+                const mappedChapters = refreshedCourse.chapters.map((ch: DBChapter) => ({
+                    id: ch.id,
+                    title: ch.title,
+                    timestamp: ch.timestamp,
+                    completed: false,
+                    order_index: ch.order_index
+                })).sort((a, b) => a.order_index - b.order_index);
+                setChapters(mappedChapters);
+            }
+        } catch (error: unknown) {
+            const message = error instanceof Error
+                ? error.message
+                : (typeof error === 'object' && error !== null && 'message' in error)
+                    ? (error as { message: string }).message
+                    : "Failed to save course";
+            alert(message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    const handleSaveToLearning = () => {
-        dispatch(addCourse({
-            id: videoId,
-            title: "Enterprise React Architecture Masterclass 2026",
-            progress: progress,
-            duration: "1:45:00",
-            totalChapters: chapters.length,
-            completedChapters: chapters.filter(c => c.completed).length,
-            addedAt: new Date().toISOString(),
-        }));
-    };
+    if (isLoading) {
+        return (
+            <MainLayout>
+                <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-4">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="text-muted-foreground animate-pulse font-medium">
+                        Building your course checkpoints...
+                    </p>
+                </div>
+            </MainLayout>
+        );
+    }
 
     return (
         <MainLayout>
@@ -125,9 +251,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         size="sm"
                         className="gap-2"
                         onClick={handleSaveToLearning}
-                        disabled={isSaved}
+                        disabled={isSaved || isSaving}
                     >
-                        {isSaved ? (
+                        {isSaving ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                        ) : isSaved ? (
                             <><Sparkles className="h-4 w-4 text-primary" /> Saved to Learning</>
                         ) : (
                             <><PlusCircle className="h-4 w-4" /> Add to My Learning</>
@@ -148,7 +276,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         <iframe
                             width="100%"
                             height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}`}
+                            src={`https://www.youtube.com/embed/${videoId}?start=${startTime}&autoplay=1`}
                             title="YouTube video player"
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -159,21 +287,21 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                     <div className="space-y-4">
                         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                            Enterprise React Architecture Masterclass 2026
+                            {course?.title || "Loading Course..."}
                         </h1>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1.5 font-medium text-foreground">
                                 <TvMinimalPlay className="h-4 w-4 text-red-500" /> YouTube Tutorial
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <Clock className="h-4 w-4" /> 1h 45m total
+                                <Clock className="h-4 w-4" /> Comprehensive
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <BookOpen className="h-4 w-4" /> 8 Checkpoints
+                                <BookOpen className="h-4 w-4" /> {chapters.length} Checkpoints
                             </div>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed">
-                            In this deep-dive tutorial, we explore how to build and scale production-ready React applications using Next.js, TypeScript, and modern design system principles. Check off each section as you master the concepts.
+                        <p className="text-muted-foreground leading-relaxed line-clamp-4">
+                            {course?.description || "Extracting video details and chapters..."}
                         </p>
                     </div>
                 </div>
@@ -206,8 +334,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                         key={chapter.id}
                                         {...chapter}
                                         onToggle={toggleChapter}
+                                        onWatch={handleWatch}
                                     />
                                 ))}
+                                {chapters.length === 0 && (
+                                    <div className="py-8 text-center text-muted-foreground">
+                                        No checkpoints detected in video description.
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-4 flex flex-col gap-3">

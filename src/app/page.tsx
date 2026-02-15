@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/common/MainLayout";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { TvMinimalPlay, ArrowRight, Sparkles, Play, Shield, Zap } from "lucide-react";
+import { TvMinimalPlay, ArrowRight, Sparkles, Play, Shield, Zap, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 
 export default function LandingPage() {
@@ -26,11 +26,8 @@ export default function LandingPage() {
     }
 
     setIsLoading(true);
-    // Simulate generation delay
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push(`/courses/${videoId}`);
-    }, 1500);
+    // Directly push to the course page, which now handles real ingestion via Server Actions
+    router.push(`/courses/${videoId}`);
   };
 
   return (
@@ -38,15 +35,15 @@ export default function LandingPage() {
       <div className="flex flex-col items-center justify-center py-12 md:py-24 text-center px-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-6 animate-bounce">
           <Sparkles className="h-3 w-3" />
-          <span>Sky is the limit</span>
+          <span>Streamlined Learning</span>
         </div>
 
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 max-w-[800px] leading-tight">
-          Turn YouTube tutorials into <span className="text-primary italic">structured learning</span>
+          Turn YouTube tutorials into <span className="text-primary italic">structured courses</span>
         </h1>
 
         <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-[650px]">
-          The most focused way to learn from long video tutorials. Paste a link and start checking off your progress.
+          The most focused way to learn from long video tutorials. Paste a link and start tracking your progress instantly.
         </p>
 
         <div className="w-full max-w-[700px] flex flex-col sm:flex-row gap-3 p-2 bg-card border rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300">
@@ -57,45 +54,43 @@ export default function LandingPage() {
               className="pl-12 h-14 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
             />
           </div>
           <Button
             size="lg"
-            className="h-14 px-8 gap-2 group"
+            className="h-14 px-8 gap-2 group min-w-[180px]"
             onClick={handleGenerate}
             disabled={isLoading || !url}
           >
-            {isLoading ? "Analyzing..." : "Generate Checkpoints"}
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                Generate Path
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </Button>
         </div>
 
-        <div className="mt-8 flex items-center gap-4 text-xs text-muted-foreground">
-          <span>Example:</span>
-          <button
-            className="hover:text-primary underline"
-            onClick={() => setUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")}
-          >
-            React Masterclass 2024
-          </button>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-24 w-full">
           {[
             {
               icon: Play,
-              title: "Smart Checkpoints",
-              desc: "Automatically detect chapters or create your own custom timestamps."
+              title: "AI Ingestion",
+              desc: "Automatically detect chapters and metadata directly from YouTube."
             },
             {
               icon: Zap,
-              title: "Progress Tracking",
-              desc: "Save your spot and see exactly how much you've learned."
+              title: "Cloud Persistence",
+              desc: "Save your progress to Supabase and resume from any device."
             },
             {
               icon: Shield,
-              title: "Focused Learning",
-              desc: "A clean, distraction-free interface built for deep work."
+              title: "Clean Interface",
+              desc: "A distraction-free player optimized for focused study sessions."
             }
           ].map((feature, i) => (
             <Card key={i} className="bg-card/50 backdrop-blur-sm border-none shadow-none hover:bg-card/80 transition-colors">
