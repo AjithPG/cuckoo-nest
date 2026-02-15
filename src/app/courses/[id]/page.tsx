@@ -13,7 +13,8 @@ import {
     BookOpen,
     ArrowRight,
     Sparkles,
-    PlusCircle
+    PlusCircle,
+    TvMinimalPlay
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -33,14 +34,15 @@ const MOCK_CHAPTERS = [
     { id: "8", title: "Final Deployment", timestamp: "1:30:00", completed: false },
 ];
 
-export default function CoursePage({ params }: { params: { id: string } }) {
+export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: videoId } = React.use(params);
+
     const [chapters, setChapters] = useState(MOCK_CHAPTERS);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const dispatch = useAppDispatch();
     const savedCourses = useAppSelector((state: RootState) => state.courses.savedCourses);
 
-    // Unwrap params using React.use if needed, but for standard app router params is sync
-    const videoId = params.id;
+
     const isSaved = savedCourses.some(c => c.id === videoId);
 
     const toggleChapter = (id: string) => {
@@ -161,7 +163,7 @@ export default function CoursePage({ params }: { params: { id: string } }) {
                         </h1>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                <Youtube className="h-4 w-4 text-red-500" /> YouTube Tutorial
+                                <TvMinimalPlay className="h-4 w-4 text-red-500" /> YouTube Tutorial
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <Clock className="h-4 w-4" /> 1h 45m total
@@ -170,7 +172,7 @@ export default function CoursePage({ params }: { params: { id: string } }) {
                                 <BookOpen className="h-4 w-4" /> 8 Checkpoints
                             </div>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed italic">
+                        <p className="text-muted-foreground leading-relaxed">
                             In this deep-dive tutorial, we explore how to build and scale production-ready React applications using Next.js, TypeScript, and modern design system principles. Check off each section as you master the concepts.
                         </p>
                     </div>

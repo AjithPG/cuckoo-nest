@@ -7,7 +7,11 @@ import { Sun, Moon, Monitor, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Theme, Mode } from "@/types/theme";
 
-export function ThemeSwitcher() {
+interface ThemeSwitcherProps {
+    variant?: "default" | "sidebar";
+}
+
+export function ThemeSwitcher({ variant = "default" }: ThemeSwitcherProps) {
     const { theme, setTheme, mode, setMode } = useTheme();
 
     const themes: { name: Theme; color: string }[] = [
@@ -23,7 +27,10 @@ export function ThemeSwitcher() {
     ];
 
     return (
-        <div className="flex flex-col gap-4 p-4 border rounded-xl bg-card shadow-lg animate-in fade-in slide-in-from-top-2">
+        <div className={cn(
+            "flex flex-col gap-4 p-4",
+            variant === "default" && "border rounded-xl bg-card shadow-lg animate-in fade-in slide-in-from-top-2"
+        )}>
             <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <Palette className="h-3 w-3" /> Brand Theme

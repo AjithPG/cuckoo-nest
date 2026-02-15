@@ -58,12 +58,6 @@ export function ChapterCard({ id, title, timestamp, completed, onToggle }: Chapt
                     {title}
                 </h4>
             </div>
-
-            <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">
-                    Mark Done
-                </span>
-            </div>
         </div>
     );
 }

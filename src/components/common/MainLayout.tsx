@@ -20,7 +20,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                         sidebarOpen ? "md:pl-64" : "md:pl-0"
                     )}
                 >
-                    <div className="mx-auto max-w-[1100px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="mx-auto max-w-[1100px] animate-in fade-in slide-in-from-bottom-4 duration-500 px-4">
                         {children}
                     </div>
                 </main>

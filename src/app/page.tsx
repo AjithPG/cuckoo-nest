@@ -1,11 +1,10 @@
 "use client";
-
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/common/MainLayout";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Youtube, ArrowRight, Sparkles, Play, Shield, Zap } from "lucide-react";
+import { TvMinimalPlay, ArrowRight, Sparkles, Play, Shield, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 
 export default function LandingPage() {
@@ -36,10 +35,10 @@ export default function LandingPage() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col items-center justify-center py-12 md:py-24 text-center">
+      <div className="flex flex-col items-center justify-center py-12 md:py-24 text-center px-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-6 animate-bounce">
           <Sparkles className="h-3 w-3" />
-          <span>New: AI-Powered Auto-Chaptering</span>
+          <span>Sky is the limit</span>
         </div>
 
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 max-w-[800px] leading-tight">
@@ -52,7 +51,7 @@ export default function LandingPage() {
 
         <div className="w-full max-w-[700px] flex flex-col sm:flex-row gap-3 p-2 bg-card border rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300">
           <div className="relative flex-1">
-            <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <TvMinimalPlay className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               placeholder="Paste YouTube tutorial URL here..."
               className="pl-12 h-14 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
@@ -79,8 +78,6 @@ export default function LandingPage() {
           >
             React Masterclass 2024
           </button>
-          <span>•</span>
-          <button className="hover:text-primary underline">Designing with Tailwind</button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-24 w-full">
@@ -107,7 +104,7 @@ export default function LandingPage() {
                   <feature.icon className="h-6 w-6" />
                 </div>
                 <h3 className="font-bold text-lg mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed italic">{feature.desc}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
               </CardContent>
             </Card>
           ))}

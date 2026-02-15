@@ -18,7 +18,7 @@ export default function MyCoursesPage() {
 
     return (
         <MainLayout>
-            <div className="space-y-8 max-w-[1100px] mx-auto animate-in fade-in duration-700">
+            <div className="space-y-8 max-w-[1100px] mx-auto animate-in fade-in duration-700 p-4">
                 <div className="flex items-center gap-4">
                     <div className="h-10 w-10 flex items-center justify-center text-primary">
                         <Book className="h-8 w-8" />

@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { MainLayout } from "@/components/common/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Compass, Search, Filter, PlayCircle, ArrowRight, Youtube } from "lucide-react";
+import { Compass, Search, Filter, PlayCircle, ArrowRight, Youtube, TvMinimalPlay } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/Input";
@@ -70,7 +70,7 @@ export default function CoursesCatalogPage() {
 
     return (
         <MainLayout>
-            <div className="space-y-8 max-w-[1100px] mx-auto animate-in fade-in duration-700">
+            <div className="space-y-8 max-w-[1100px] mx-auto animate-in fade-in duration-700 p-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         <div className="h-10 w-10 flex items-center justify-center text-primary">
@@ -101,8 +101,8 @@ export default function CoursesCatalogPage() {
                             key={cat}
                             onClick={() => setActiveCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all shrink-0 ${activeCategory === cat
-                                    ? "bg-primary text-primary-foreground shadow-md scale-105"
-                                    : "bg-muted text-muted-foreground hover:bg-accent"
+                                ? "bg-primary text-primary-foreground shadow-md scale-105"
+                                : "bg-muted text-muted-foreground hover:bg-accent"
                                 }`}
                         >
                             {cat}
@@ -135,7 +135,7 @@ export default function CoursesCatalogPage() {
                                             </div>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="p-6 space-y-4 flex-1 flex flex-col">
+                                    <CardContent className="p-4 space-y-4 flex-1 flex flex-col gap-2">
                                         <h3 className="text-[17px] font-semibold leading-snug line-clamp-2 h-12 text-foreground/90">
                                             {course.title}
                                         </h3>
@@ -147,13 +147,13 @@ export default function CoursesCatalogPage() {
                                         </div>
 
                                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                            <Youtube className="h-3.5 w-3.5 text-red-500" />
+                                            <TvMinimalPlay className="h-3.5 w-3.5 text-red-500" />
                                             <span>YouTube Learning Track</span>
                                         </div>
 
-                                        <div className="pt-4 mt-auto">
+                                        <div className="mt-auto">
                                             <Link href={`/courses/${course.id}`}>
-                                                <Button className="w-full bg-[#0891b2] hover:bg-[#0e7490] text-white font-bold h-12 rounded-xl border-none shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
+                                                <Button className="w-full bg-[#0891b2] hover:bg-[#0e7490] text-white font-bold h-10 rounded-lg border-none shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
                                                     View Course
                                                     <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                                                 </Button>
