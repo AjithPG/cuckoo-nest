@@ -3,11 +3,21 @@
 import React from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { setSidebar } from "@/store/slices/appSlice";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
     const sidebarOpen = useAppSelector((state) => state.app.sidebarOpen);
+    const dispatch = useAppDispatch();
+
+    useEffect(() => {
+        // Automatically open sidebar on desktop screens (>= 1024px)
+        if (window.innerWidth >= 1024) {
+            dispatch(setSidebar(true));
+        }
+    }, [dispatch]);
 
     return (
         <div className="min-h-screen bg-background text-foreground transition-colors duration-300">

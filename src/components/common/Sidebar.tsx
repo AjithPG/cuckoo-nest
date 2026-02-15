@@ -13,7 +13,8 @@ import {
     LayoutDashboard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import { setSidebar } from "@/store/slices/appSlice";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
 const navItems = [
@@ -26,7 +27,14 @@ const navItems = [
 
 export function Sidebar() {
     const pathname = usePathname();
+    const dispatch = useAppDispatch();
     const sidebarOpen = useAppSelector((state) => state.app.sidebarOpen);
+
+    const handleLinkClick = () => {
+        if (window.innerWidth < 1024) {
+            dispatch(setSidebar(false));
+        }
+    };
 
     return (
         <aside
@@ -44,6 +52,7 @@ export function Sidebar() {
                         <Link
                             key={item.href}
                             href={item.href}
+                            onClick={handleLinkClick}
                             className={cn(
                                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
                                 pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground"

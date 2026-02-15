@@ -6,7 +6,7 @@ interface AppState {
 }
 
 const initialState: AppState = {
-    sidebarOpen: true,
+    sidebarOpen: false,
     activeVideoId: null,
 };
 
