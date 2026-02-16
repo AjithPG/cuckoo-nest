@@ -119,30 +119,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }, [videoId, supabase]);
 
     const toggleChapter = async (id: string) => {
-        if (!user) {
-            router.push(`/login?mode=signup&returnTo=/courses/${videoId}`);
-            return;
-        }
-
-        if (!isSaved) {
-            alert("Please click 'Add to My Learning' to start tracking your progress!");
-            return;
-        }
-
         const chapter = chapters.find(c => c.id === id);
         if (!chapter) return;
 
         const newStatus = !chapter.completed;
 
-        // Optimistic update
+        // Optimistic update for all users (guests and authenticated)
         setChapters(prev => prev.map(c => c.id === id ? { ...c, completed: newStatus } : c));
 
-        try {
-            await toggleChapterCompletion(id, newStatus);
-        } catch (error) {
-            console.error(error);
-            // Rollback
-            setChapters(prev => prev.map(c => c.id === id ? { ...c, completed: !newStatus } : c));
+        // Only persist to DB if user is logged in AND course is saved
+        if (user && isSaved) {
+            try {
+                await toggleChapterCompletion(id, newStatus);
+            } catch (error) {
+                console.error(error);
+                // Rollback on error
+                setChapters(prev => prev.map(c => c.id === id ? { ...c, completed: !newStatus } : c));
+            }
         }
     };
 
@@ -181,6 +174,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
 
     const handleSubmit = () => {
+        if (!user) {
+            router.push(`/login?mode=signup&returnTo=/courses/${videoId}`);
+            return;
+        }
+
         if (progress < 100) {
             alert("Please complete all checkpoints before submitting!");
             return;
