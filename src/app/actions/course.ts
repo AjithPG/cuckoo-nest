@@ -173,3 +173,66 @@ export async function toggleChapterCompletion(chapterId: string, isCompleted: bo
     if (error) throw error;
     return { success: true };
 }
+
+/**
+ * Unenroll user from course and delete all associated progress.
+ */
+export async function unenrollFromCourse(courseId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { success: false, error: "Authentication required" };
+
+    try {
+        // 1. Get all chapter IDs for this course
+        const { data: chapters } = await supabase
+            .from("chapters")
+            .select("id")
+            .eq("course_id", courseId);
+
+        // 2. Delete enrollment record (This needs to be done first if there are foreign key constraints, 
+        // or last? Usually Foreign Keys cascade or restrict. 
+        // Let's assume user_progress references chapters or user_courses? 
+        // user_progress ref chapters. chapters ref courses.
+        // user_courses ref courses.
+        // So deleting user_courses is independent of user_progress usually 
+        // UNLESS user_progress depends on user_courses (unlikely).
+        // BUT, better to delete progress first to be clean.
+
+        // 2. Delete all progress records for these chapters
+        if (chapters && chapters.length > 0) {
+            const chapterIds = chapters.map(ch => ch.id);
+            const { error: progressError } = await supabase
+                .from("user_progress")
+                .delete()
+                .eq("user_id", user.id)
+                .in("chapter_id", chapterIds);
+
+            if (progressError) {
+                console.error("Progress delete error:", progressError);
+                return { success: false, error: `Progress deletion failed: ${progressError.message}` };
+            }
+        }
+
+        // 3. Delete enrollment record
+        const { error: enrollmentError } = await supabase
+            .from("user_courses")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("course_id", courseId);
+
+        if (enrollmentError) {
+            console.error("Enrollment delete error:", enrollmentError);
+            return { success: false, error: `Unenrollment failed: ${enrollmentError.message}` };
+        }
+
+        revalidatePath("/my-courses");
+        return { success: true };
+    } catch (error) {
+        console.error("Unenrollment Server Error:", error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "An unexpected error occurred during unenrollment"
+        };
+    }
+}

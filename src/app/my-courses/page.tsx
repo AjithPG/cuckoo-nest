@@ -9,6 +9,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { unenrollFromCourse } from "@/app/actions/course";
 
 export default function MyCoursesPage() {
     const [savedCourses, setSavedCourses] = useState<any[]>([]);
@@ -58,19 +59,16 @@ export default function MyCoursesPage() {
     }, [supabase]);
 
     const handleRemoveCourse = async (courseId: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { error } = await supabase
-            .from("user_courses")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("course_id", courseId);
-
-        if (error) {
-            alert(error.message);
-        } else {
-            setSavedCourses(prev => prev.filter(c => c.dbId !== courseId));
+        try {
+            const result = await unenrollFromCourse(courseId);
+            if (result.success) {
+                setSavedCourses(prev => prev.filter(c => c.dbId !== courseId));
+            } else {
+                alert(result.error || "Failed to remove course");
+            }
+        } catch (error: unknown) {
+            console.error("Remove course error:", error);
+            alert("An unexpected error occurred while removing the course.");
         }
     };
 
