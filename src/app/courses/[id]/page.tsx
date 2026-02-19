@@ -22,7 +22,6 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getCoursePreview, enrollInCourse, toggleChapterCompletion } from "@/app/actions/course";
 import { createClient } from "@/lib/supabase/client";
-import { User } from "@supabase/supabase-js";
 
 interface Chapter {
     id: string;
@@ -48,6 +47,8 @@ interface Course {
     chapters: DBChapter[];
 }
 
+import { useAuth } from "@clerk/nextjs";
+
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
     const { id: videoId } = React.use(params);
     const [course, setCourse] = useState<Course | null>(null);
@@ -55,17 +56,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [startTime, setStartTime] = useState(0);
 
-    const supabase = createClient();
+    const { userId, getToken } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
         const init = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
+            const token = await getToken({ template: "supabase" }) ?? undefined;
+            const supabase = createClient(token);
 
             const { course: fetchedCourse, error, isStored } = await getCoursePreview(videoId);
             if (error) {
@@ -78,11 +78,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
             // Correctly check if the user is enrolled, not just if the course exists
             let enrolled = false;
-            if (user && isStored && fetchedCourse) {
+            if (userId && isStored && fetchedCourse) {
                 const { data: enrollment } = await supabase
                     .from("user_courses")
                     .select("id")
-                    .eq("user_id", user.id)
+                    .eq("user_id", userId)
                     .eq("course_id", fetchedCourse.id)
                     .maybeSingle();
                 enrolled = !!enrollment;
@@ -91,11 +91,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
             // Fetch user progress if logged in AND course is stored
             let progressMap: Record<string, boolean> = {};
-            if (user && enrolled && fetchedCourse) {
+            if (userId && enrolled && fetchedCourse) {
                 const { data: progressData } = await supabase
                     .from("user_progress")
                     .select("chapter_id, is_completed")
-                    .eq("user_id", user.id);
+                    .eq("user_id", userId);
 
                 progressMap = (progressData || []).reduce((acc: Record<string, boolean>, curr: { chapter_id: string; is_completed: boolean }) => {
                     acc[curr.chapter_id] = curr.is_completed;
@@ -116,7 +116,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         };
 
         init();
-    }, [videoId, supabase]);
+    }, [videoId, userId, getToken]);
 
     const toggleChapter = async (id: string) => {
         const chapter = chapters.find(c => c.id === id);
@@ -128,7 +128,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         setChapters(prev => prev.map(c => c.id === id ? { ...c, completed: newStatus } : c));
 
         // Only persist to DB if user is logged in AND course is saved
-        if (user && isSaved) {
+        if (userId && isSaved) {
             try {
                 await toggleChapterCompletion(id, newStatus);
             } catch (error) {
@@ -159,7 +159,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }, [chapters]);
 
     const handleReset = async () => {
-        if (!user) return;
+        if (!userId) return;
 
         const resetChapters = chapters.map(c => ({ ...c, completed: false }));
         setChapters(resetChapters);
@@ -174,7 +174,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
 
     const handleSubmit = () => {
-        if (!user) {
+        if (!userId) {
             router.push(`/login?mode=signup&returnTo=/courses/${videoId}`);
             return;
         }
@@ -187,7 +187,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
 
     const handleSaveToLearning = async () => {
-        if (!user) {
+        if (!userId) {
             router.push(`/login?mode=signup&returnTo=/courses/${videoId}`);
             return;
         }

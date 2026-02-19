@@ -9,20 +9,23 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@clerk/nextjs";
 import { unenrollFromCourse } from "@/app/actions/course";
 
 export default function MyCoursesPage() {
     const [savedCourses, setSavedCourses] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const supabase = createClient();
+    const { userId, getToken } = useAuth();
 
     const fetchSavedCourses = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        if (!userId) {
             setSavedCourses([]);
             setIsLoading(false);
             return;
         }
+
+        const token = await getToken({ template: "supabase" }) ?? undefined;
+        const supabase = createClient(token);
 
         const { data, error } = await supabase
             .from("user_courses")
@@ -36,7 +39,7 @@ export default function MyCoursesPage() {
                     chapters (id)
                 )
             `)
-            .eq("user_id", user.id);
+            .eq("user_id", userId);
 
         if (error) {
             console.error(error);
@@ -56,7 +59,7 @@ export default function MyCoursesPage() {
 
     useEffect(() => {
         fetchSavedCourses();
-    }, [supabase]);
+    }, [userId, getToken]);
 
     const handleRemoveCourse = async (courseId: string) => {
         try {

@@ -3,40 +3,20 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, Settings, LogOut, User as UserIcon } from "lucide-react";
+import { Menu, X, Settings } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toggleSidebar } from "@/store/slices/appSlice";
 import { RootState } from "@/store";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { User } from "@supabase/supabase-js";
+import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 export function Header() {
     const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
     const themeSwitcherRef = useRef<HTMLDivElement>(null);
     const dispatch = useAppDispatch();
-    const router = useRouter();
     const sidebarOpen = useAppSelector((state: RootState) => state.app.sidebarOpen);
-    const supabase = createClient();
-
-    useEffect(() => {
-        const getInitialSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-        };
-
-        getInitialSession();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, [supabase, setUser]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -49,11 +29,6 @@ export function Header() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-        router.push("/");
-    };
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
@@ -106,28 +81,29 @@ export function Header() {
                         </div>
                     )}
 
-                    {user ? (
-                        <div className="flex items-center gap-2">
-                            <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                <UserIcon className="h-4 w-4" />
+                    <div className="ml-2">
+                        <SignedIn>
+                            <UserButton
+                                appearance={{
+                                    elements: {
+                                        avatarBox: "h-8 w-8"
+                                    }
+                                }}
+                            />
+                        </SignedIn>
+                        <SignedOut>
+                            <div className="flex items-center gap-2">
+                                <SignInButton mode="modal">
+                                    <Button variant="outline" size="sm">
+                                        Login
+                                    </Button>
+                                </SignInButton>
+                                <Link href="/login?mode=signup">
+                                    <Button size="sm" className="hidden sm:inline-flex">Get Started</Button>
+                                </Link>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-                                <LogOut className="h-4 w-4" />
-                                <span className="hidden sm:inline">Logout</span>
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <Link href="/login">
-                                <Button variant="outline" size="sm">
-                                    Login
-                                </Button>
-                            </Link>
-                            <Link href="/login?mode=signup">
-                                <Button size="sm" className="hidden sm:inline-flex">Get Started</Button>
-                            </Link>
-                        </div>
-                    )}
+                        </SignedOut>
+                    </div>
                 </div>
             </div>
         </header>

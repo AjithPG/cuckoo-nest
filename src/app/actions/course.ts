@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchVideoDetails } from "@/services/youtube";
 import { revalidatePath } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
 
 // Define types for better clarity
 interface Chapter {
@@ -27,7 +28,9 @@ interface Course {
  * otherwise fetches from YouTube without saving to DB.
  */
 export async function getCoursePreview(youtubeId: string): Promise<{ course: Course | null; error: string | null; isStored: boolean }> {
-    const supabase = await createClient();
+    const { getToken } = await auth();
+    const token = await getToken({ template: "supabase" }) ?? undefined;
+    const supabase = await createClient(token);
 
     // 1. Check if course exists in DB
     const { data: existingCourse } = await supabase
@@ -70,10 +73,12 @@ export async function getCoursePreview(youtubeId: string): Promise<{ course: Cou
  * Atomically saves course, chapters, and enrolls user.
  */
 export async function enrollInCourse(youtubeId: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { userId, getToken } = await auth();
+    const token = await getToken({ template: "supabase" }) ?? undefined;
 
-    if (!user) throw new Error("Authentication required");
+    if (!userId) throw new Error("Authentication required");
+
+    const supabase = await createClient(token);
 
     // 1. Check if already exists
     let { data: course } = await supabase
@@ -140,7 +145,7 @@ export async function enrollInCourse(youtubeId: string) {
     const { error: enrollmentError } = await supabase
         .from("user_courses")
         .upsert({
-            user_id: user.id,
+            user_id: userId,
             course_id: course.id,
         }, { onConflict: 'user_id,course_id' });
 
@@ -153,17 +158,19 @@ export async function enrollInCourse(youtubeId: string) {
 }
 
 export async function toggleChapterCompletion(chapterId: string, isCompleted: boolean) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { userId, getToken } = await auth();
+    const token = await getToken({ template: "supabase" }) ?? undefined;
 
-    if (!user) throw new Error("Authentication required");
+    if (!userId) throw new Error("Authentication required");
+
+    const supabase = await createClient(token);
 
     // Note: If chapterId is empty (preview mode), this will fail, 
     // but the UI should prevent clicking checkboxes in preview mode.
     const { error } = await supabase
         .from("user_progress")
         .upsert({
-            user_id: user.id,
+            user_id: userId,
             chapter_id: chapterId,
             is_completed: isCompleted,
         }, {
@@ -178,26 +185,19 @@ export async function toggleChapterCompletion(chapterId: string, isCompleted: bo
  * Unenroll user from course and delete all associated progress.
  */
 export async function unenrollFromCourse(courseId: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { userId, getToken } = await auth();
+    const token = await getToken({ template: "supabase" }) ?? undefined;
 
-    if (!user) return { success: false, error: "Authentication required" };
+    if (!userId) return { success: false, error: "Authentication required" };
 
     try {
+        const supabase = await createClient(token);
+
         // 1. Get all chapter IDs for this course
         const { data: chapters } = await supabase
             .from("chapters")
             .select("id")
             .eq("course_id", courseId);
-
-        // 2. Delete enrollment record (This needs to be done first if there are foreign key constraints, 
-        // or last? Usually Foreign Keys cascade or restrict. 
-        // Let's assume user_progress references chapters or user_courses? 
-        // user_progress ref chapters. chapters ref courses.
-        // user_courses ref courses.
-        // So deleting user_courses is independent of user_progress usually 
-        // UNLESS user_progress depends on user_courses (unlikely).
-        // BUT, better to delete progress first to be clean.
 
         // 2. Delete all progress records for these chapters
         if (chapters && chapters.length > 0) {
@@ -205,7 +205,7 @@ export async function unenrollFromCourse(courseId: string) {
             const { error: progressError } = await supabase
                 .from("user_progress")
                 .delete()
-                .eq("user_id", user.id)
+                .eq("user_id", userId)
                 .in("chapter_id", chapterIds);
 
             if (progressError) {
@@ -218,7 +218,7 @@ export async function unenrollFromCourse(courseId: string) {
         const { error: enrollmentError } = await supabase
             .from("user_courses")
             .delete()
-            .eq("user_id", user.id)
+            .eq("user_id", userId)
             .eq("course_id", courseId);
 
         if (enrollmentError) {
